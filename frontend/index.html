@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>MERN on Kind</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+    }
+
+    input {
+      padding: 8px;
+      width: 70%;
+    }
+
+    button {
+      padding: 8px 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>MERN on 2-Worker Kind Cluster</h2>
+  <p id="pod-info">Loading pod info...</p>
+  <input id="note" placeholder="Write something to MongoDB..." />
+  <button onclick="addItem()">Save</button>
+  <ul id="list"></ul>
+
+  <script>
+    async function loadItems() {
+      const res = await fetch('/api/items');
+      const data = await res.json();
+      document.getElementById('pod-info').innerText = 'Served by Backend Pod: ' + data.pod;
+      document.getElementById('list').innerHTML = data.items.map(i => `<li>${i.text}</li>`).join('');
+    }
+    async function addItem() {
+      const input = document.getElementById('note');
+      if (!input.value) return;
+      await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: input.value })
+      });
+      input.value = '';
+      loadItems();
+    }
+    loadItems();
+  </script>
+</body>
+
+</html>
