@@ -18,9 +18,11 @@ spec:
           imagePullPolicy: Never
           ports:
             - containerPort: 5000
-          env:
-            - name: MONGO_URI
-              value: "mongodb://mongo-service:27017/merndb"
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: backend-secret
 
 ---
 apiVersion: v1
