@@ -4,9 +4,34 @@ A hands-on Kubernetes project deploying a full-stack **MERN (MongoDB, Express, R
 
 ---
 
-## Architecture
+## Architecture & Branch Progression
 
-* **Flow:** Browser ──► Ingress-NGINX ──► Frontend/Backend Services ──► MongoDB StatefulSet.
+```text
+Browser (http://localhost)
+   │
+   ▼  (Port 80 via kind extraPortMappings)
+Ingress-NGINX Controller (Pinned to control-plane)
+   ├─── Path: /      ──► frontend-service (ClusterIP:80) ──► Frontend Pods (2 replicas)
+   └─── Path: /api   ──► backend-service (ClusterIP:5000) ──► Backend Pods (2 replicas)
+                                                                 │
+                                                                 ▼
+                                                        mongo-service (Headless)
+                                                                 │
+                                                                 ▼
+                                                        mongo-ss StatefulSet (mongo:8.3)
+                                                                 │
+                                                                 ▼
+                                                        PersistentVolumeClaim (1Gi RWO)
+```
+
+| Branch | Milestone | Key Kubernetes Concepts |
+| :--- | :--- | :--- |
+| `01-feat/deployments-services-pv` | Base working MERN stack | `Deployment`, `Service` (`ClusterIP` & `NodePort`), `PersistentVolumeClaim` |
+| `02-feat/configmaps-secrets` | Externalized configuration | `ConfigMap`, `Secret`, `envFrom` injection |
+| `03-feat/statefulsets` | Stateful database layer | `StatefulSet`, Headless `Service` (`clusterIP: None`), `volumeClaimTemplates` |
+| `04-feat/ingress` | Layer 7 HTTP routing | `Ingress`, `IngressClass` (`nginx`), `nodeSelector` (`ingress-ready: "true"`) |
+
+---
 
 ---
 
@@ -53,7 +78,7 @@ kubectl wait --namespace ingress-nginx \
 
 ### 5. Deploy the Application Manifests
 ```bash
-kubectl apply -f config-secrets.yaml
+kubectl apply -f config-secret.yaml
 kubectl apply -f mongo.yaml
 kubectl apply -f backend.yaml
 kubectl apply -f frontend.yaml
@@ -72,6 +97,26 @@ Open **`http://localhost`** in your browser once the pods are running and Ingres
 ```bash
 kind delete cluster --name practise-lab-cluster
 ```
+
+---
+
+## Additional Guide: Automated Setup & Teardown
+
+Automate the entire cluster lifecycle using the included helper scripts:
+
+### One-Command Spin Up (`setup.sh`)
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+*Creates `practise-lab-cluster`, builds and loads the Docker images, installs/pins Ingress-NGINX, and deploys all MERN manifests.*
+
+### One-Command Cleanup (`teardown.sh`)
+```bash
+chmod +x teardown.sh
+./teardown.sh
+```
+*Deletes `practise-lab-cluster`, removes associated resources, and cleans up local lab images.*
 
 ---
 
