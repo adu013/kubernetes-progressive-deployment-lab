@@ -19,7 +19,7 @@ kubectl apply -f deploy.yaml
 kubectl patch deployment ingress-nginx-controller -n ingress-nginx \
   --type='json' \
   -p='[{"op": "add", "path": "/spec/template/spec/nodeSelector/ingress-ready", "value": "true"}]'
-kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=90s
+kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=180s
 
 echo "5/6 Deploying MERN manifests..."
 kubectl apply -f config-secret.yaml -f mongo.yaml -f backend.yaml -f frontend.yaml -f ingress.yaml
