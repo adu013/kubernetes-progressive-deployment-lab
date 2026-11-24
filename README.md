@@ -19,9 +19,12 @@ Ingress-NGINX Controller (Pinned to control-plane)
                                                                  │
                                                                  ▼
                                                         mongo-ss StatefulSet (mongo:8.3)
-                                                                 │
-                                                                 ▼
-                                                        PersistentVolumeClaim (1Gi RWO)
+                                                           │                    ▲
+                                                           ▼                    │ (mongodump)
+                                              mongo-data PVC (1Gi)      mongo-backup-job (Job)
+                                                                                │
+                                                                                ▼
+                                                                      mongo-backup-pvc (1Gi)
 ```
 
 | Branch | Milestone | Key Kubernetes Concepts |
@@ -30,8 +33,7 @@ Ingress-NGINX Controller (Pinned to control-plane)
 | `02-feat/configmaps-secrets` | Externalized configuration | `ConfigMap`, `Secret`, `envFrom` injection |
 | `03-feat/statefulsets` | Stateful database layer | `StatefulSet`, Headless `Service` (`clusterIP: None`), `volumeClaimTemplates` |
 | `04-feat/ingress` | Layer 7 HTTP routing | `Ingress`, `IngressClass` (`nginx`), `nodeSelector` (`ingress-ready: "true"`) |
-
----
+| `05-feat/mongo-backup-job` | On-demand database backups | `Job`, `mongodump --archive --gzip`, dedicated backup `PersistentVolumeClaim` |
 
 ---
 
@@ -97,6 +99,18 @@ Open **`http://localhost`** in your browser once the pods are running and Ingres
 ```bash
 kind delete cluster --name practise-lab-cluster
 ```
+
+---
+
+## On-Demand MongoDB Backup (`Job`)
+
+Trigger a compressed backup (`merndb-<timestamp>.archive.gz`) stored on `mongo-backup-pvc`:
+```bash
+kubectl apply -f mongo-backup-job.yaml
+kubectl logs job/mongo-backup-job
+```
+
+*(The finished `Job` and `Pod` automatically clean up after 60 seconds via `ttlSecondsAfterFinished: 60`, while the backup files remain safely stored on `mongo-backup-pvc`.)*
 
 ---
 
