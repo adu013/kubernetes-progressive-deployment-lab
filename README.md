@@ -21,7 +21,7 @@ Ingress-NGINX Controller (Pinned to control-plane)
                                                         mongo-ss StatefulSet (mongo:8.3)
                                                            │                    ▲
                                                            ▼                    │ (mongodump)
-                                              mongo-data PVC (1Gi)      mongo-backup-job (Job)
+                                              mongo-data PVC (1Gi)      mongo-backup-job / cronjob
                                                                                 │
                                                                                 ▼
                                                                       mongo-backup-pvc (1Gi)
@@ -104,15 +104,21 @@ kind delete cluster --name practise-lab-cluster
 
 ---
 
-## On-Demand MongoDB Backup (`Job`)
+## MongoDB Backups (`Job` & `CronJob`)
 
-Trigger a compressed backup (`merndb-<timestamp>.archive.gz`) stored on `mongo-backup-pvc`:
+### On-Demand Backup (`Job`)
 ```bash
 kubectl apply -f mongo-backup-job.yaml
 kubectl logs job/mongo-backup-job
 ```
+*(Automatically cleans up the finished `Job` and `Pod` after 60 seconds via `ttlSecondsAfterFinished: 60` while preserving `.archive.gz` files on `mongo-backup-pvc`.)*
 
-*(The finished `Job` and `Pod` automatically clean up after 60 seconds via `ttlSecondsAfterFinished: 60`, while the backup files remain safely stored on `mongo-backup-pvc`.)*
+### Scheduled Backups (`CronJob`)
+```bash
+kubectl apply -f mongo-backup-cronjob.yaml
+kubectl get cronjob,jobs,pods
+```
+*(Runs on a recurring schedule—`*/2 * * * *` for testing (change it to `0 2 * * *` for nightly backups). Automatically prunes older files to retain only the latest 5 archives.)*
 
 ---
 
