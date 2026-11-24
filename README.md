@@ -34,6 +34,8 @@ Ingress-NGINX Controller (Pinned to control-plane)
 | `03-feat/statefulsets` | Stateful database layer | `StatefulSet`, Headless `Service` (`clusterIP: None`), `volumeClaimTemplates` |
 | `04-feat/ingress` | Layer 7 HTTP routing | `Ingress`, `IngressClass` (`nginx`), `nodeSelector` (`ingress-ready: "true"`) |
 | `05-feat/mongo-backup-job` | On-demand database backups | `Job`, `mongodump --archive --gzip`, dedicated backup `PersistentVolumeClaim` |
+| `06-feat/mongo-backup-cronjob` | Scheduled backups & retention | `CronJob`, `concurrencyPolicy`, history limits, 5-archive retention pruning |
+
 
 ---
 
