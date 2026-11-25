@@ -35,7 +35,7 @@ Ingress-NGINX Controller (Pinned to control-plane)
 | `04-feat/ingress` | Layer 7 HTTP routing | `Ingress`, `IngressClass` (`nginx`), `nodeSelector` (`ingress-ready: "true"`) |
 | `05-feat/mongo-backup-job` | On-demand database backups | `Job`, `mongodump --archive --gzip`, dedicated backup `PersistentVolumeClaim` |
 | `06-feat/mongo-backup-cronjob` | Scheduled backups & retention | `CronJob`, `concurrencyPolicy`, history limits, 5-archive retention pruning |
-
+| `07-feat/namespace` | Workload & resource isolation | `Namespace` (`lab-ns`), `kubectl config set-context --current --namespace` |
 
 ---
 
@@ -82,6 +82,8 @@ kubectl wait --namespace ingress-nginx \
 
 ### 5. Deploy the Application Manifests
 ```bash
+kubectl apply -f namespace.yaml
+kubectl config set-context --current --namespace=lab-ns
 kubectl apply -f config-secret.yaml
 kubectl apply -f mongo.yaml
 kubectl apply -f backend.yaml
@@ -108,15 +110,15 @@ kind delete cluster --name practise-lab-cluster
 
 ### On-Demand Backup (`Job`)
 ```bash
-kubectl apply -f mongo-backup-job.yaml
-kubectl logs job/mongo-backup-job
+kubectl apply -f mongo-backup-job.yaml -n=lab-ns
+kubectl logs job/mongo-backup-job -n=lab-ns
 ```
 *(Automatically cleans up the finished `Job` and `Pod` after 60 seconds via `ttlSecondsAfterFinished: 60` while preserving `.archive.gz` files on `mongo-backup-pvc`.)*
 
 ### Scheduled Backups (`CronJob`)
 ```bash
-kubectl apply -f mongo-backup-cronjob.yaml
-kubectl get cronjob,jobs,pods
+kubectl apply -f mongo-backup-cronjob.yaml -n=lab-ns
+kubectl get cronjob,jobs,pods -n=lab-ns
 ```
 *(Runs on a recurring schedule—`*/2 * * * *` for testing (change it to `0 2 * * *` for nightly backups). Automatically prunes older files to retain only the latest 5 archives.)*
 

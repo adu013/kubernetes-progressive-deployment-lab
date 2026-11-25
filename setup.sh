@@ -2,6 +2,7 @@
 set -euo pipefail
 
 CLUSTER_NAME="practise-lab-cluster"
+NAMESPACE="lab-ns"
 
 echo "1/6 Creating kind cluster '${CLUSTER_NAME}'..."
 kind delete cluster --name "${CLUSTER_NAME}" 2>/dev/null || true
@@ -14,17 +15,21 @@ docker build -t mern-frontend:v1 ./frontend
 echo "3/6 Loading images into '${CLUSTER_NAME}'..."
 kind load docker-image mern-backend:v1 mern-frontend:v1 --name "${CLUSTER_NAME}"
 
-echo "4/6 Installing Ingress-NGINX controller..."
+echo "4/7 Creating namespace and changing the context"
+kubectl apply -f namespace.yaml
+kubectl config set-context --current --namespace="${NAMESPACE}"
+
+echo "5/7 Installing Ingress-NGINX controller..."
 kubectl apply -f deploy.yaml
 kubectl patch deployment ingress-nginx-controller -n ingress-nginx \
   --type='json' \
   -p='[{"op": "add", "path": "/spec/template/spec/nodeSelector/ingress-ready", "value": "true"}]'
 kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=180s
 
-echo "5/6 Deploying MERN manifests..."
+echo "6/7 Deploying MERN manifests..."
 kubectl apply -f config-secret.yaml -f mongo.yaml -f backend.yaml -f frontend.yaml -f ingress.yaml
 
-echo "6/6 Waiting for application pods to be ready..."
+echo "7/7 Waiting for application pods to be ready..."
 kubectl wait --for=condition=ready pod -l app=mongo --timeout=90s
 kubectl wait --for=condition=ready pod -l app=backend --timeout=90s
 kubectl wait --for=condition=ready pod -l app=frontend --timeout=90s
