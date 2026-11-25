@@ -1,0 +1,48 @@
+name: Lint Kubernetes Manifest & Scripts
+
+on:
+  push:
+    branches:
+      - main
+      - "**feat/**"
+  pull_request:
+    branches:
+      - main
+      - "**feat/**"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: YAML, Kubernetes Schema & Shell Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Lint YAML formatting (yamllint)
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: .
+          config_data: |
+            extends: default
+            ignore: |
+              deploy.yaml
+              .github/
+            rules:
+              line-length: disable
+              document-start: disable
+              truthy:
+                allowed-values: ['true', 'false', 'on']
+
+      - name: Validate Kubernetes schemas (kubeconform)
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xvzf -
+          ./kubeconform -summary -ignore-filename-pattern="deploy.yaml|kind-config.yaml" .
+
+      - name: Lint Bash scripts (shellcheck)
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: .
