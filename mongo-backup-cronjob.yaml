@@ -14,10 +14,14 @@ kind: CronJob
 metadata:
   name: mongo-backup-cronjob
 spec:
-  schedule: "*/2 * * * *" # Run every 2 minutes for testing (use "0 2 * * *" for daily run at 2AM)
-  concurrencyPolicy: Forbid # Prevents overlapping backups if a previous run is still active
-  successfulJobsHistoryLimit: 3 # Keeps the last 3 completed Job objects in Kubernetes
-  failedJobsHistoryLimit: 1 # Keeps the last 1 completed Job objects for debugging
+  # Run every 2 minutes for testing (use "0 2 * * *" for daily run at 2AM)
+  schedule: "*/2 * * * *"
+  # Prevents overlapping backups if a previous run is still active
+  concurrencyPolicy: Forbid
+  # Keeps the last 3 completed Job objects in Kubernetes
+  successfulJobsHistoryLimit: 3
+  # Keeps the last 1 completed Job objects for debugging
+  failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
       ttlSecondsAfterFinished: 60
