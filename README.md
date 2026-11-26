@@ -39,6 +39,7 @@ Ingress-NGINX Controller (Pinned to control-plane)
 | `08-feat/probes` | Health probes | `livenessProbe`, `readinessProbe` |
 | `09-feat/resources` | Container resource bounds | `resources.requests` and `resources.limits` (CPU & memory) |
 | `10-feat/hpa` | Horizontal Pod Autoscaling | `HorizontalPodAutoscaler` (`autoscaling/v2`), `metrics-server` |
+| `11-feat/network-policies` | Zero-trust network microsegmentation | Calico CNI (`disableDefaultCNI`), `NetworkPolicy` (default-deny + allowlists) |
 
 ---
 
@@ -60,7 +61,15 @@ docker build -t mern-frontend:v2 ./frontend
 kind load docker-image mern-backend:v2 mern-frontend:v2 --name practise-lab-cluster
 ```
 
-### 4. Install the Ingress-NGINX Controller
+### 4. Install Calico CNI (Required for `NetworkPolicy` Enforcement)
+```bash
+kubectl apply -f addons/calico/calico.yaml
+kubectl rollout status daemonset/calico-node -n kube-system --timeout=180s
+kubectl rollout status deployment/calico-kube-controllers -n kube-system --timeout=180s
+```
+*(Note: `kind`'s default CNI `kindnet` does not enforce `NetworkPolicy` rules, so `disableDefaultCNI: true` is set in `kind-config.yaml` and Calico is installed instead.)*
+
+### 5. Install the Ingress-NGINX Controller
 
 Apply the Ingress-NGINX manifest:
 ```bash
@@ -83,7 +92,7 @@ kubectl wait --namespace ingress-nginx \
   --timeout=90s
 ```
 
-### 5. Install `metrics-server` (for Autoscaling)
+### 6. Install `metrics-server` (for Autoscaling)
 ```bash
 kubectl apply -f addons/metrics-server/components.yaml
 kubectl patch deployment metrics-server -n kube-system \
@@ -93,10 +102,11 @@ kubectl rollout status deployment/metrics-server -n kube-system --timeout=90s
 ```
 *(Note: `--kubelet-insecure-tls` is required on `kind` because local nodes use self-signed Kubelet TLS certificates.)*
 
-### 6. Deploy the Application Manifests
+### 7. Deploy the Application Manifests
 ```bash
 kubectl apply -f namespace.yaml
 kubectl config set-context --current --namespace=lab-ns
+kubectl apply -f network-policies.yaml
 kubectl apply -f config-secret.yaml
 kubectl apply -f mongo.yaml
 kubectl apply -f backend.yaml
@@ -105,7 +115,7 @@ kubectl apply -f ingress.yaml
 kubectl apply -f hpa.yaml
 ```
 
-### 7. Verify & Access the App
+### 8. Verify & Access the App
 ```bash
 kubectl get statefulset,pods,svc,pvc,ingress
 ```
@@ -164,6 +174,28 @@ Press **`Ctrl + C`** to stop the load generator (which automatically deletes the
 
 ---
 
+## NetworkPolicies (`Zero-Trust Microsegmentation`)
+
+### Apply & Inspect Policies
+```bash
+kubectl apply -f network-policies.yaml -n=lab-ns
+kubectl get networkpolicy -n=lab-ns
+```
+* **`default-deny-all`:** Blocks all ingress and egress traffic in `lab-ns` by default.
+* **`allow-dns-egress`:** Allows pods to resolve cluster DNS (`kube-dns` on port `53`).
+* **`allow-ingress-to-frontend`:** Allows traffic to `frontend` (`:80`) strictly from the `ingress-nginx` namespace.
+* **`allow-backend-traffic`:** Allows traffic to `backend` (`:5000`) from `ingress-nginx` (and `frontend`), and restricts backend egress strictly to `mongo` (`:27017`).
+* **`allow-mongo-ingress`:** Allows incoming traffic to `mongo` (`:27017`) strictly from `backend` and `mongo-backup` pods.
+
+### Verify Policy Enforcement
+Confirm unauthorized pods in `lab-ns` cannot reach MongoDB directly (should time out after 3 seconds):
+```bash
+kubectl run netpol-test --rm -it --restart=Never --image=busybox:1.36 -n=lab-ns -- \
+  nc -zv -w 3 mongo-service 27017
+```
+
+---
+
 ## Additional Guide: Automated Setup & Teardown
 
 Automate the entire cluster lifecycle using the included helper scripts:
@@ -173,7 +205,7 @@ Automate the entire cluster lifecycle using the included helper scripts:
 chmod +x setup.sh
 ./setup.sh
 ```
-*Creates `practise-lab-cluster`, builds and loads the Docker images, installs/pins Ingress-NGINX, and deploys all MERN manifests.*
+*Creates `practise-lab-cluster`, builds and loads the Docker images, installs Calico CNI, Ingress-NGINX, and `metrics-server`, and deploys all MERN manifests and network policies.*
 
 ### One-Command Cleanup (`teardown.sh`)
 ```bash
@@ -186,6 +218,4 @@ chmod +x teardown.sh
 
 ## Further Improvements
 
-* **HPA Autoscaling:** Implement `HorizontalPodAutoscaler` metrics-based scaling for frontends and backends.
-* **NetworkPolicies:** Enforce microsegmentation and strict zero-trust pod communication rules.
 * **RBAC & Pod Security:** Configure dedicated `ServiceAccount`s, least-privilege `Role`/`RoleBinding`s, and non-root `securityContext` constraints.
