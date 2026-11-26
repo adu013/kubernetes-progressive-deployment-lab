@@ -26,8 +26,14 @@ kubectl patch deployment ingress-nginx-controller -n ingress-nginx \
   -p='[{"op": "add", "path": "/spec/template/spec/nodeSelector/ingress-ready", "value": "true"}]'
 kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=180s
 
+kubectl apply -f addons/metrics-server/components.yaml
+kubectl patch deployment metrics-server -n kube-system \
+  --type='json' \
+  -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
+kubectl rollout status deployment/metrics-server -n kube-system --timeout=90s
+
 echo "6/7 Deploying MERN manifests..."
-kubectl apply -f config-secret.yaml -f mongo.yaml -f backend.yaml -f frontend.yaml -f ingress.yaml
+kubectl apply -f config-secret.yaml -f mongo.yaml -f backend.yaml -f frontend.yaml -f ingress.yaml -f hpa.yaml
 
 echo "7/7 Waiting for application pods to be ready..."
 kubectl wait --for=condition=ready pod -l app=mongo --timeout=90s
