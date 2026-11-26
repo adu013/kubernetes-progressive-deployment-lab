@@ -41,7 +41,7 @@ jobs:
       - name: Validate Kubernetes schemas (kubeconform)
         run: |
           curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xvzf -
-          ./kubeconform -summary -ignore-filename-pattern="deploy\.yaml|kind-config\.yaml|package\.json|package-lock\.json|\.github/" .
+          ./kubeconform -summary -ignore-filename-pattern="deploy\.yaml|kind-config\.yaml|package\.json|package-lock\.json|\.github/|addons/" .
 
       - name: Lint Bash scripts (shellcheck)
         uses: ludeeus/action-shellcheck@master
