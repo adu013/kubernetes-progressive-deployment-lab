@@ -40,6 +40,7 @@ Ingress-NGINX Controller (Pinned to control-plane)
 | `09-feat/resources` | Container resource bounds | `resources.requests` and `resources.limits` (CPU & memory) |
 | `10-feat/hpa` | Horizontal Pod Autoscaling | `HorizontalPodAutoscaler` (`autoscaling/v2`), `metrics-server` |
 | `11-feat/network-policies` | Zero-trust network microsegmentation | Calico CNI (`disableDefaultCNI`), `NetworkPolicy` (default-deny + allowlists) |
+| `12-feat/rbac-security-context` | Identity, RBAC & Pod hardening | Dedicated `ServiceAccount`s (`automountServiceAccountToken: false`), `Role`/`RoleBinding`, non-root `securityContext` |
 
 ---
 
@@ -108,6 +109,7 @@ kubectl apply -f namespace.yaml
 kubectl config set-context --current --namespace=lab-ns
 kubectl apply -f network-policies.yaml
 kubectl apply -f config-secret.yaml
+kubectl apply -f rbac.yaml
 kubectl apply -f mongo.yaml
 kubectl apply -f backend.yaml
 kubectl apply -f frontend.yaml
@@ -196,6 +198,35 @@ kubectl run netpol-test --rm -it --restart=Never --image=busybox:1.36 -n=lab-ns 
 
 ---
 
+## RBAC & Pod Security Hardening
+
+### Apply & Verify Least-Privilege RBAC
+```bash
+kubectl apply -f rbac.yaml -n=lab-ns
+kubectl get serviceaccount,role,rolebinding -n=lab-ns
+
+# Allowed for backup-sa (least-privilege read access):
+kubectl auth can-i list pods --as=system:serviceaccount:lab-ns:backup-sa -n=lab-ns
+kubectl auth can-i get persistentvolumeclaims --as=system:serviceaccount:lab-ns:backup-sa -n=lab-ns
+
+# Denied (no delete or secret access):
+kubectl auth can-i delete pods --as=system:serviceaccount:lab-ns:backup-sa -n=lab-ns
+kubectl auth can-i get secrets --as=system:serviceaccount:lab-ns:backend-sa -n=lab-ns
+```
+* **Dedicated Identities:** `backend-sa`, `frontend-sa`, `mongo-sa`, and `backup-sa` isolate workload identities instead of sharing the `default` `ServiceAccount`.
+* **Token Isolation:** `automountServiceAccountToken: false` prevents Kubernetes API credentials from mounting into pod filesystems.
+* **Least-Privilege `Role` / `RoleBinding`:** Grants `backup-sa` read-only (`get`, `list`) visibility into `pods`, `persistentvolumeclaims`, `jobs`, and `cronjobs` within `lab-ns`.
+
+### Verify Non-Root Execution & Container Hardening
+```bash
+kubectl exec -it deploy/backend-deployment -n=lab-ns -- id
+kubectl exec -it mongo-ss-0 -n=lab-ns -- id
+kubectl exec -it deploy/backend-deployment -n=lab-ns -- ls /var/run/secrets/kubernetes.io/serviceaccount
+```
+* **`backend-deployment`** runs as non-root `UID 1000` (`node`), **`mongo-ss`** and backup jobs run as `UID 999` (`mongodb`) with `fsGroup: 999`, and all containers enforce `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault`, and dropped Linux capabilities.
+
+---
+
 ## Additional Guide: Automated Setup & Teardown
 
 Automate the entire cluster lifecycle using the included helper scripts:
@@ -215,7 +246,3 @@ chmod +x teardown.sh
 *Deletes `practise-lab-cluster`, removes associated resources, and cleans up local lab images.*
 
 ---
-
-## Further Improvements
-
-* **RBAC & Pod Security:** Configure dedicated `ServiceAccount`s, least-privilege `Role`/`RoleBinding`s, and non-root `securityContext` constraints.
