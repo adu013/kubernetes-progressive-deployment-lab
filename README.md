@@ -93,7 +93,7 @@ kubectl rollout status deployment/metrics-server -n kube-system --timeout=90s
 ```
 *(Note: `--kubelet-insecure-tls` is required on `kind` because local nodes use self-signed Kubelet TLS certificates.)*
 
-### 5. Deploy the Application Manifests
+### 6. Deploy the Application Manifests
 ```bash
 kubectl apply -f namespace.yaml
 kubectl config set-context --current --namespace=lab-ns
@@ -105,7 +105,7 @@ kubectl apply -f ingress.yaml
 kubectl apply -f hpa.yaml
 ```
 
-### 6. Verify & Access the App
+### 7. Verify & Access the App
 ```bash
 kubectl get statefulset,pods,svc,pvc,ingress
 ```
