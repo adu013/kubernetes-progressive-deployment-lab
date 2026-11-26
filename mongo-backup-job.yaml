@@ -13,6 +13,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: mongo-backup-job
+  labels:
+    app: mongo-backup
 spec:
   backoffLimit: 2
   ttlSecondsAfterFinished: 60
