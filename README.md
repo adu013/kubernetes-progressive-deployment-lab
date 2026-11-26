@@ -38,6 +38,7 @@ Ingress-NGINX Controller (Pinned to control-plane)
 | `07-feat/namespace` | Workload & resource isolation | `Namespace` (`lab-ns`), `kubectl config set-context --current --namespace` |
 | `08-feat/probes` | Health probes | `livenessProbe`, `readinessProbe` |
 | `09-feat/resources` | Container resource bounds | `resources.requests` and `resources.limits` (CPU & memory) |
+| `10-feat/hpa` | Horizontal Pod Autoscaling | `HorizontalPodAutoscaler` (`autoscaling/v2`), `metrics-server` |
 
 ---
 
@@ -82,6 +83,16 @@ kubectl wait --namespace ingress-nginx \
   --timeout=90s
 ```
 
+### 5. Install `metrics-server` (for Autoscaling)
+```bash
+kubectl apply -f addons/metrics-server/components.yaml
+kubectl patch deployment metrics-server -n kube-system \
+  --type='json' \
+  -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
+kubectl rollout status deployment/metrics-server -n kube-system --timeout=90s
+```
+*(Note: `--kubelet-insecure-tls` is required on `kind` because local nodes use self-signed Kubelet TLS certificates.)*
+
 ### 5. Deploy the Application Manifests
 ```bash
 kubectl apply -f namespace.yaml
@@ -91,6 +102,7 @@ kubectl apply -f mongo.yaml
 kubectl apply -f backend.yaml
 kubectl apply -f frontend.yaml
 kubectl apply -f ingress.yaml
+kubectl apply -f hpa.yaml
 ```
 
 ### 6. Verify & Access the App
@@ -123,6 +135,32 @@ kubectl apply -f mongo-backup-cronjob.yaml -n=lab-ns
 kubectl get cronjob,jobs,pods -n=lab-ns
 ```
 *(Runs on a recurring schedule—`*/2 * * * *` for testing (change it to `0 2 * * *` for nightly backups). Automatically prunes older files to retain only the latest 5 archives.)*
+
+---
+
+## Horizontal Pod Autoscaling (`HPA`)
+
+### Apply & Monitor Autoscalers
+```bash
+kubectl apply -f hpa.yaml -n=lab-ns
+kubectl get hpa -n=lab-ns
+kubectl top pods -n=lab-ns
+```
+* **`backend-hpa`:** Scales `backend-deployment` between **2 and 5 replicas** when average CPU utilization exceeds **75%**.
+* **`frontend-hpa`:** Scales `frontend-deployment` between **2 and 4 replicas** when average CPU utilization exceeds **75%**.
+
+### Simulate Load to Test Scaling
+Open a watcher in seperate terminal windows:
+```bash
+kubectl get pods -n=lab-ns -w
+kubectl get hpa -n=lab-ns -w
+```
+Generate HTTP traffic from a temporary `busybox` pod in a second terminal:
+```bash
+kubectl run load-generator --rm -it --restart=Never --image=busybox:1.36 -n=lab-ns -- \
+  /bin/sh -c "while true; do wget -q -O- http://backend-service:5000/api/health >/dev/null 2>&1 || wget -q -O- http://backend-service:5000/ >/dev/null 2>&1; done"
+```
+Press **`Ctrl + C`** to stop the load generator (which automatically deletes the pod) and watch `backend-deployment` scale back down to 2 replicas after the stabilization window passes.
 
 ---
 
