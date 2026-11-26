@@ -9,11 +9,11 @@ kind delete cluster --name "${CLUSTER_NAME}" 2>/dev/null || true
 kind create cluster --config kind-config.yaml
 
 echo "2/6 Building Docker images..."
-docker build -t mern-backend:v1 ./backend
-docker build -t mern-frontend:v1 ./frontend
+docker build -t mern-backend:v2 ./backend
+docker build -t mern-frontend:v2 ./frontend
 
 echo "3/6 Loading images into '${CLUSTER_NAME}'..."
-kind load docker-image mern-backend:v1 mern-frontend:v1 --name "${CLUSTER_NAME}"
+kind load docker-image mern-backend:v2 mern-frontend:v2 --name "${CLUSTER_NAME}"
 
 echo "4/7 Creating namespace and changing the context"
 kubectl apply -f namespace.yaml

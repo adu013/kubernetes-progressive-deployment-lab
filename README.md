@@ -36,6 +36,7 @@ Ingress-NGINX Controller (Pinned to control-plane)
 | `05-feat/mongo-backup-job` | On-demand database backups | `Job`, `mongodump --archive --gzip`, dedicated backup `PersistentVolumeClaim` |
 | `06-feat/mongo-backup-cronjob` | Scheduled backups & retention | `CronJob`, `concurrencyPolicy`, history limits, 5-archive retention pruning |
 | `07-feat/namespace` | Workload & resource isolation | `Namespace` (`lab-ns`), `kubectl config set-context --current --namespace` |
+| `08-feat/probes` | Health probes | `livenessProbe`, `readinessProbe` |
 
 ---
 
@@ -48,13 +49,13 @@ kind create cluster --config kind-config.yaml
 
 ### 2. Build the Local Docker Images
 ```bash
-docker build -t mern-backend:v1 ./backend
-docker build -t mern-frontend:v1 ./frontend
+docker build -t mern-backend:v2 ./backend
+docker build -t mern-frontend:v2 ./frontend
 ```
 
 ### 3. Load Images into the `kind` Cluster
 ```bash
-kind load docker-image mern-backend:v1 mern-frontend:v1 --name practise-lab-cluster
+kind load docker-image mern-backend:v2 mern-frontend:v2 --name practise-lab-cluster
 ```
 
 ### 4. Install the Ingress-NGINX Controller

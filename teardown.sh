@@ -12,6 +12,6 @@ else
 fi
 
 echo "2/2 Cleaning up dangling resources..."
-docker rmi -f mern-backend:v1 mern-frontend:v1 2>/dev/null || true
+docker rmi -f mern-backend:v2 mern-frontend:v2 2>/dev/null || true
 
 echo "Teardown complete!"

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: mern-backend:v1
+          image: mern-backend:v2
           imagePullPolicy: Never
           ports:
             - containerPort: 5000
@@ -23,7 +23,22 @@ spec:
                 name: backend-config
             - secretRef:
                 name: backend-secret
-
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/ready
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
