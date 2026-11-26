@@ -31,6 +31,7 @@ jobs:
             ignore: |
               deploy.yaml
               .github/
+              addons/
             rules:
               line-length: disable
               document-start: disable
