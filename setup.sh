@@ -49,6 +49,7 @@ kubectl rollout status deployment/metrics-server -n kube-system --timeout=90s
 echo ""
 echo "8/9 Deploying MERN manifests..."
 kubectl apply -f config-secret.yaml
+kubectl apply -f rbac.yaml
 kubectl apply -f mongo.yaml
 kubectl apply -f backend.yaml
 kubectl apply -f frontend.yaml

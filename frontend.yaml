@@ -12,12 +12,26 @@ spec:
       labels:
         app: frontend
     spec:
+      serviceAccountName: frontend-sa
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: frontend
           image: mern-frontend:v2
           imagePullPolicy: Never
           ports:
             - containerPort: 80
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+                - CHOWN
+                - SETGID
+                - SETUID
           resources:
             requests:
               cpu: "50m"
