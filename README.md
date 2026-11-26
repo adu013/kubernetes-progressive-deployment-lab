@@ -37,6 +37,7 @@ Ingress-NGINX Controller (Pinned to control-plane)
 | `06-feat/mongo-backup-cronjob` | Scheduled backups & retention | `CronJob`, `concurrencyPolicy`, history limits, 5-archive retention pruning |
 | `07-feat/namespace` | Workload & resource isolation | `Namespace` (`lab-ns`), `kubectl config set-context --current --namespace` |
 | `08-feat/probes` | Health probes | `livenessProbe`, `readinessProbe` |
+| `09-feat/resources` | Container resource bounds | `resources.requests` and `resources.limits` (CPU & memory) |
 
 ---
 
@@ -147,6 +148,6 @@ chmod +x teardown.sh
 
 ## Further Improvements
 
-* **Health Probes & Resource Limits:** Configure `livenessProbe`, `readinessProbe`, and container resource requests/limits.
 * **HPA Autoscaling:** Implement `HorizontalPodAutoscaler` metrics-based scaling for frontends and backends.
 * **NetworkPolicies:** Enforce microsegmentation and strict zero-trust pod communication rules.
+* **RBAC & Pod Security:** Configure dedicated `ServiceAccount`s, least-privilege `Role`/`RoleBinding`s, and non-root `securityContext` constraints.
