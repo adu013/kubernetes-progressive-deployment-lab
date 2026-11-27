@@ -41,6 +41,7 @@ Ingress-NGINX Controller (Pinned to control-plane)
 | `10-feat/hpa` | Horizontal Pod Autoscaling | `HorizontalPodAutoscaler` (`autoscaling/v2`), `metrics-server` |
 | `11-feat/network-policies` | Zero-trust network microsegmentation | Calico CNI (`disableDefaultCNI`), `NetworkPolicy` (default-deny + allowlists) |
 | `12-feat/rbac-security-context` | Identity, RBAC & Pod hardening | Dedicated `ServiceAccount`s (`automountServiceAccountToken: false`), `Role`/`RoleBinding`, non-root `securityContext` |
+| `13-feat/mongo-replicaset` | High-availability MongoDB ReplicaSet | 3-replica `StatefulSet` (`--replSet rs0`), `rs.initiate()`, `secondaryPreferred` read scaling & automatic failover |
 
 ---
 
@@ -115,6 +116,25 @@ kubectl apply -f backend.yaml
 kubectl apply -f frontend.yaml
 kubectl apply -f ingress.yaml
 kubectl apply -f hpa.yaml
+```
+
+### 8. Initialize DB ReplicaSet
+After all 3 `mongo-ss` pods (`mongo-ss-0`, `mongo-ss-1`, `mongo-ss-2`) are running, initialize the 3-node ReplicaSet once:
+```bash
+kubectl exec -it mongo-ss-0 -n=lab-ns -- mongosh --quiet --eval '
+  rs.initiate({
+    _id: "rs0",
+    members: [
+      { _id: 0, host: "mongo-ss-0.mongo-service:27017", priority: 2 },
+      { _id: 1, host: "mongo-ss-1.mongo-service:27017", priority: 1 },
+      { _id: 2, host: "mongo-ss-2.mongo-service:27017", priority: 1 }
+    ]
+  })
+'
+```
+Restart the backend deployment:
+```bash
+kubectl rollout restart deployment/backend-deployment
 ```
 
 ### 8. Verify & Access the App
@@ -224,6 +244,32 @@ kubectl exec -it mongo-ss-0 -n=lab-ns -- id
 kubectl exec -it deploy/backend-deployment -n=lab-ns -- ls /var/run/secrets/kubernetes.io/serviceaccount
 ```
 * **`backend-deployment`** runs as non-root `UID 1000` (`node`), **`mongo-ss`** and backup jobs run as `UID 999` (`mongodb`) with `fsGroup: 999`, and all containers enforce `allowPrivilegeEscalation: false`, `seccompProfile: RuntimeDefault`, and dropped Linux capabilities.
+
+---
+
+## MongoDB High-Availability ReplicaSet (`rs0`)
+
+### Initialize & Verify ReplicaSet Members
+After all 3 `mongo-ss` pods (`mongo-ss-0`, `mongo-ss-1`, `mongo-ss-2`) are running, initialize the 3-node ReplicaSet once:
+```bash
+kubectl exec -it mongo-ss-0 -n=lab-ns -- mongosh --quiet --eval '
+  rs.initiate({
+    _id: "rs0",
+    members: [
+      { _id: 0, host: "mongo-ss-0.mongo-service:27017", priority: 2 },
+      { _id: 1, host: "mongo-ss-1.mongo-service:27017", priority: 1 },
+      { _id: 2, host: "mongo-ss-2.mongo-service:27017", priority: 1 }
+    ]
+  })
+'
+```
+Verify **1 `PRIMARY`** and **2 `SECONDARY` (read replicas)**:
+```bash
+kubectl get statefulset,pods,pvc -l app=mongo -n=lab-ns
+kubectl exec -it mongo-ss-0 -n=lab-ns -- mongosh --quiet --eval 'rs.status().members.map(m => ({name: m.name, stateStr: m.stateStr}))'
+```
+* **Read Scaling:** `MONGO_URI` uses `?replicaSet=rs0&readPreference=secondaryPreferred` so writes target `PRIMARY` while reads distribute across `SECONDARY` replicas.
+* **Automatic Failover:** Deleting `mongo-ss-0` triggers an election promoting a secondary to `PRIMARY` within ~10 seconds.
 
 ---
 
