@@ -99,6 +99,7 @@ spec:
       app: mongo
   policyTypes:
     - Ingress
+    - Egress
   ingress:
     - from:
         - podSelector:
@@ -107,6 +108,17 @@ spec:
         - podSelector:
             matchLabels:
               app: mongo-backup
+        - podSelector:
+            matchLabels:
+              app: mongo
+      ports:
+        - protocol: TCP
+          port: 27017
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mongo
       ports:
         - protocol: TCP
           port: 27017

@@ -3,6 +3,7 @@ set -euo pipefail
 
 CLUSTER_NAME="practise-lab-cluster"
 NAMESPACE="lab-ns"
+STATEFULSET="mongo-ss"
 
 echo ""
 echo "1/9 Creating kind cluster '${CLUSTER_NAME}'..."
@@ -55,6 +56,24 @@ kubectl apply -f backend.yaml
 kubectl apply -f frontend.yaml
 kubectl apply -f ingress.yaml
 kubectl apply -f hpa.yaml
+
+echo ""
+echo "Initiate the replica set..."
+
+echo "Waiting for all pods in StatefulSet '$STATEFULSET' to be created and ready..."
+kubectl rollout status statefulset/$STATEFULSET -n $NAMESPACE --timeout=300s
+
+kubectl exec -i mongo-ss-0 -- mongosh <<EOF
+rs.initiate({
+  _id: "rs0",
+  members: [
+    { _id: 0, host: "mongo-ss-0.mongo-service:27017", priority: 2 },
+    { _id: 1, host: "mongo-ss-1.mongo-service:27017", priority: 1 },
+    { _id: 2, host: "mongo-ss-2.mongo-service:27017", priority: 1 }
+  ]
+})
+EOF
+kubectl rollout restart deployment/backend-deployment
 
 echo ""
 echo "9/9 Waiting for application pods to be ready..."
